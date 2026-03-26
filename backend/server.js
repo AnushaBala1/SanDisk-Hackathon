@@ -108,12 +108,62 @@ app.post('/run-algorithm', (req, res) => {
   );
 });
 
-// 404 handler
-app.use((req, res) => {
-  res.status(404).json({ 
-    error: 'Route not found', 
-    message: `No route for ${req.method} ${req.url}` 
+
+// === LOGIC MINIMIZER ROUTES ===
+
+// Get current function data (truth table + original gates)
+app.get('/logic/status', (req, res) => {
+  const func = state.functions[state.currentFunction];
+  res.json({
+    currentFunction: state.currentFunction,
+    name: func.name,
+    variables: func.variables,
+    minterms: func.minterms,
+    dontcares: func.dontcares,
+    originalGates: func.originalGates,
+    description: func.description
   });
+});
+
+// Switch function
+app.post('/logic/switch', (req, res) => {
+  const { funcName } = req.body;
+  if (state.functions[funcName]) {
+    state.currentFunction = funcName;
+    res.json({ success: true, current: funcName });
+  } else {
+    res.status(400).json({ error: 'Invalid function name' });
+  }
+});
+
+// Run Quine-McCluskey + generate steps + C code
+app.post('/logic/run', (req, res) => {
+  const func = state.functions[state.currentFunction];
+  
+  const scriptPath = path.join(__dirname, 'python', 'logic_minimizer.py');
+
+  const inputData = JSON.stringify({
+    minterms: func.minterms,
+    dontcares: func.dontcares,
+    variables: func.variables,
+    originalGates: func.originalGates,
+    function_key: state.currentFunction     // ← This is what was missing!
+  });
+
+  execFile('python', [scriptPath, inputData], { maxBuffer: 1024 * 1024 }, 
+    (error, stdout, stderr) => {
+      if (error) {
+        console.error('Python error:', stderr);
+        return res.status(500).json({ error: 'Python failed', detail: stderr });
+      }
+      try {
+        const result = JSON.parse(stdout.trim());
+        res.json(result);
+      } catch (e) {
+        res.status(500).json({ error: 'Parse error', raw: stdout });
+      }
+    }
+  );
 });
 
 // Start server
@@ -121,4 +171,12 @@ const PORT = 3001;
 app.listen(PORT, () => {
   console.log(`✅ NANDGuard backend running on http://localhost:${PORT}`);
   console.log(`   Test it with: curl http://localhost:${PORT}/status`);
+});
+
+// 404 handler
+app.use((req, res) => {
+  res.status(404).json({ 
+    error: 'Route not found', 
+    message: `No route for ${req.method} ${req.url}` 
+  });
 });
