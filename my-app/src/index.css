@@ -1,0 +1,41 @@
+@import "tailwindcss";
+
+.material-symbols-outlined {
+    font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+}
+
+.circuit-pattern {
+    background-image: url("data:image/svg+xml,%3Csvg width='80' height='80' viewBox='0 0 80 80' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg stroke='%23350000' stroke-width='1'%3E%3Cpath d='M40 40h20V20M40 40V20H20M40 40H20v20M40 40v20h20'/%3E%3Ccircle cx='40' cy='40' r='2'/%3E%3Ccircle cx='20' cy='20' r='2'/%3E%3Ccircle cx='60' cy='20' r='2'/%3E%3Ccircle cx='20' cy='60' r='2'/%3E%3Ccircle cx='60' cy='60' r='2'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+}
+
+.glow-red {
+    box-shadow: 0 0 25px rgba(230, 57, 70, 0.25);
+}
+
+.text-glow-red {
+    text-shadow: 0 0 12px rgba(255, 77, 77, 0.6);
+}
+
+/* Custom Animations for SSD Mockup */
+@keyframes loading {
+  0% { width: 60%; }
+  50% { width: 75%; }
+  100% { width: 60%; }
+}
+
+@keyframes scan {
+  0% { transform: translateX(-150%); }
+  100% { transform: translateX(400%); }
+}
+/* Subtle Red Glow Border for SSD Mockup */
+.glow-red-border {
+    box-shadow: 
+        0 0 15px rgba(230, 57, 70, 0.4),
+        0 0 35px rgba(230, 57, 70, 0.25),
+        inset 0 0 20px rgba(230, 57, 70, 0.1);
+    border: 1px solid rgba(230, 57, 70, 0.5);
+}
+/* Consistent Container Alignment */
+.section-container {
+    @apply max-w-7xl mx-auto px-8;
+}
