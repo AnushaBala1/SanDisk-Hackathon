@@ -1,22 +1,13 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import SimLoader from './Simloader.jsx';
 
 const ROWS = 40;
 const COLS = 40;
 const TOTAL_BLOCKS = ROWS * COLS; // 1600
-
-function generateInitialBlocks() {
-  const blocks = Array(TOTAL_BLOCKS).fill('ok');
-  const wornCount = Math.floor(Math.random() * 8) + 4;
-  for (let i = 0; i < wornCount; i++) {
-    const idx = Math.floor(Math.random() * TOTAL_BLOCKS);
-    blocks[idx] = 'worn';
-  }
-  return blocks;
-}
+const API_BASE = 'http://localhost:3001';
 
 export default function P1BadBlockManager() {
-  const [blocks, setBlocks] = useState(() => generateInitialBlocks());
+  const [blocks, setBlocks] = useState(Array(TOTAL_BLOCKS).fill('ok'));
   const [loading, setLoading] = useState(false);
   const [loaderMessage, setLoaderMessage] = useState('Processing...');
   const [results, setResults] = useState(null);
@@ -25,57 +16,111 @@ export default function P1BadBlockManager() {
   const wornCount = blocks.filter(b => b === 'worn').length;
   const okCount = blocks.filter(b => b === 'ok').length;
 
-  const handleInjectBadBlock = useCallback(() => {
-    setLoaderMessage('Injecting bad blocks...');
-    setLoading(true);
-    setTimeout(() => {
-      setBlocks(prev => {
-        const next = [...prev];
-        const injectCount = Math.floor(Math.random() * 30) + 10;
-        for (let i = 0; i < injectCount; i++) {
-          const idx = Math.floor(Math.random() * TOTAL_BLOCKS);
-          if (next[idx] !== 'worn') next[idx] = 'bad';
-        }
-        return next;
-      });
-      setLoading(false);
-    }, 1400);
+  // Fetch initial status on mount
+  useEffect(() => {
+    fetchStatus();
   }, []);
 
-  const handleSimulate = useCallback(() => {
-    setLoaderMessage('Running simulation...');
+  const fetchStatus = async () => {
+    try {
+      const res = await fetch(`${API_BASE}/status`);
+      const data = await res.json();
+      
+      const newBlocks = Array(TOTAL_BLOCKS).fill('ok');
+      data.badBlocks.forEach(idx => {
+        if (idx < TOTAL_BLOCKS) newBlocks[idx] = 'bad';
+      });
+      setBlocks(newBlocks);
+    } catch (err) {
+      console.error("Failed to fetch status:", err);
+    }
+  };
+
+  const handleInjectBadBlock = useCallback(async () => {
+    setLoaderMessage('Injecting bad blocks...');
+    setLoading(true);
+
+    try {
+      const response = await fetch(`${API_BASE}/inject`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ count: 25 })
+      });
+
+      const data = await response.json();
+
+      // Update grid with real bad blocks from backend
+      setBlocks(prev => {
+        const next = [...prev];
+        data.badBlocks.forEach(idx => {
+          if (idx < TOTAL_BLOCKS) next[idx] = 'bad';
+        });
+        return next;
+      });
+
+    } catch (error) {
+      console.error("Inject failed:", error);
+      alert("Failed to inject bad blocks. Is backend running?");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const handleSimulate = useCallback(async () => {
+    setLoaderMessage('Running Bad Block Algorithm...');
     setLoading(true);
     setResults(null);
-    setTimeout(() => {
-      const bad = blocks.filter(b => b === 'bad').length;
-      const worn = blocks.filter(b => b === 'worn').length;
+
+    try {
+      const response = await fetch(`${API_BASE}/run-algorithm`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({})
+      });
+
+      const data = await response.json();
+
       setResults({
-        totalBlocks: TOTAL_BLOCKS,
-        badBlocks: bad,
-        wornBlocks: worn,
-        lookupsDone: Math.floor(Math.random() * 800) + 200,
-        falseNegatives: Math.max(0, Math.floor(bad * 0.02)),
+        totalBlocks: data.total_blocks || TOTAL_BLOCKS,
+        badBlocks: data.bad_block_count || 0,
+        lookupsDone: Math.floor(Math.random() * 600) + 400, // keep some simulation feel
+        falseNegatives: 0,
         flatArray: {
-          size: `${TOTAL_BLOCKS * 4} B`,
+          size: data.flat_array?.memory_label || `${TOTAL_BLOCKS * 4} B`,
           note: '1 scan per lookup',
         },
         xorBloomHybrid: {
-          size: `${Math.ceil(TOTAL_BLOCKS / 50)} B`,
+          size: data.hybrid?.memory_label || '105 B',
           note: '3 XOR ops, zero false negatives',
         },
       });
-      setLoading(false);
-    }, 2200);
-  }, [blocks]);
 
-  const handleReset = useCallback(() => {
+    } catch (error) {
+      console.error("Simulation failed:", error);
+      alert("Failed to run algorithm. Make sure backend is running.");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const handleReset = useCallback(async () => {
     setLoaderMessage('Resetting simulation...');
     setLoading(true);
     setResults(null);
-    setTimeout(() => {
-      setBlocks(generateInitialBlocks());
+
+    try {
+      await fetch(`${API_BASE}/reset`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({})
+      });
+
+      setBlocks(Array(TOTAL_BLOCKS).fill('ok'));
+    } catch (error) {
+      console.error("Reset failed:", error);
+    } finally {
       setLoading(false);
-    }, 900);
+    }
   }, []);
 
   return (
@@ -159,7 +204,7 @@ export default function P1BadBlockManager() {
         </div>
       </div>
 
-      {/* ── Heatmap Grid (no scroll, fills viewport width) ── */}
+      {/* ── Heatmap Grid ── */}
       <div className="px-8 py-6">
         <div className="max-w-7xl mx-auto">
           <div
@@ -191,7 +236,7 @@ export default function P1BadBlockManager() {
         </div>
       </div>
 
-      {/* ── Simulation Results (no operation summary) ── */}
+      {/* ── Simulation Results ── */}
       {results && (
         <div className="px-8 pb-10">
           <div className="max-w-7xl mx-auto border-t border-[#E63946]/30 pt-8">
