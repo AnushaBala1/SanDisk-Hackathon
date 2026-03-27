@@ -179,7 +179,7 @@ export default function P2LogicMinimization() {
               <button
                 onClick={handleReset}
                 disabled={loading}
-                className="border border-[#5B403F] text-[#C0C0C0] hover:border-[#E63946] hover:text-[#E63946] px-5 py-2.5 font-['Space_Grotesk'] font-bold text-sm transition-all active:scale-95 flex items-center gap-2 disabled:opacity-40"
+                className="border border-[#5B403F] text-[#e4bebc] hover:border-[#E63946] hover:text-[#E63946] px-5 py-2.5 font-['Space_Grotesk'] font-bold text-sm transition-all active:scale-95 flex items-center gap-2 disabled:opacity-40"
               >
                 <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>restart_alt</span>
                 Reset
@@ -212,7 +212,7 @@ export default function P2LogicMinimization() {
                 className={`px-4 py-1.5 font-mono text-xs tracking-wider transition-all border ${
                   activeFn === i
                     ? 'border-[#E63946] bg-[#1A0000] text-[#E63946]'
-                    : 'border-[#2A2A2A] text-[#A0A0A0] hover:border-[#E63946]/50 hover:text-[#C0C0C0]'
+                    : 'border-[#2A2A2A] text-[#A0A0A0] hover:border-[#E63946]/50 hover:text-[#e4bebc]'
                 }`}
               >
                 {fnNames[i]}
@@ -344,7 +344,7 @@ export default function P2LogicMinimization() {
                         >
                           {pi.essential ? 'ESSENTIAL' : 'REDUNDANT'}
                         </span>
-                        <span className="text-[#C0C0C0] text-xs">{pi.label}</span>
+                        <span className="text-[#e4bebc] text-xs">{pi.label}</span>
                       </div>
                     )
                   )}
@@ -364,7 +364,7 @@ export default function P2LogicMinimization() {
                       key={stat.label}
                       className="bg-[#111111] border border-[#2A2A2A] border-t-2 border-t-[#E63946] p-5"
                     >
-                      <div className="text-[#C0C0C0] font-mono text-xs tracking-wider mb-2 uppercase">
+                      <div className="text-[#e4bebc] font-mono text-xs tracking-wider mb-2 uppercase">
                         {stat.label}
                       </div>
                       <div className={`font-mono text-3xl font-bold ${stat.color}`}>
@@ -395,7 +395,7 @@ export default function P2LogicMinimization() {
                       <div className="w-1.5 h-1.5 bg-[#E63946] animate-pulse" />
                       <span className="font-mono text-[#555] text-[10px] tracking-widest uppercase">output.c</span>
                     </div>
-                    <pre className="px-5 py-4 font-mono text-xs text-[#C0C0C0] overflow-x-auto leading-relaxed whitespace-pre">
+                    <pre className="px-5 py-4 font-mono text-xs text-[#e4bebc] overflow-x-auto leading-relaxed whitespace-pre">
                       {results.generated_c}
                     </pre>
                   </div>
