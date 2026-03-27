@@ -509,7 +509,10 @@ export default function P3LDPC() {
                 </span>
                 <span className="font-mono text-[#333] text-[10px] ml-auto">firmware output</span>
               </div>
-              <div className="px-5 py-4 min-h-[200px] max-h-[290px] overflow-y-auto">
+              <div className="log-scroll px-5 py-4 min-h-[200px] max-h-[290px] overflow-y-auto" style={{
+                  scrollbarWidth: 'none',
+                  msOverflowStyle: 'none',
+                }}>
                 {logs.length === 0 ? (
                   <span className="font-mono text-[#2A2A2A] text-xs">Waiting for input...</span>
                 ) : (
@@ -524,3 +527,8 @@ export default function P3LDPC() {
     </div>
   );
 }
+<style>{`
+  .log-scroll::-webkit-scrollbar {
+    display: none;               /* Chrome, Safari */
+  }
+`}</style>
