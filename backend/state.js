@@ -31,6 +31,15 @@ const state = {
       originalGates: 9,
       description: "Out-of-Band alert threshold decision logic"
     }
+  },
+  // P3 — LDPC
+  ldpc: {
+    dataBits:    [],   // original data bits entered by user
+    codeword:    [],   // data bits + parity bits after encoding
+    corrupted:   [],   // codeword after bit flip injected
+    flippedPos:  null, // which bit position was flipped
+    encoded:     false,
+    corrupted_flag: false
   }
 };
 

@@ -166,6 +166,146 @@ app.post('/logic/run', (req, res) => {
   );
 });
 
+// ─── P3 LDPC ROUTES ──────────────────────────────────────────────────────────
+
+// ROUTE: POST /ldpc/encode
+// Frontend sends: { dataBits: [1,0,1,1,0,1,0,1] }
+// Node passes to Python, gets back codeword + parity bits
+app.post('/ldpc/encode', (req, res) => {
+  const dataBits = req.body.dataBits;
+
+  if (!dataBits || !Array.isArray(dataBits) || dataBits.length === 0) {
+    return res.status(400).json({ error: 'dataBits array is required' });
+  }
+
+  // Validate: only 0s and 1s
+  if (dataBits.some(b => b !== 0 && b !== 1)) {
+    return res.status(400).json({ error: 'dataBits must only contain 0 or 1' });
+  }
+
+  const scriptPath = path.join(__dirname, 'python', 'ldpc.py');
+  const arg = JSON.stringify({ action: 'encode', dataBits });
+
+  exec(`python3 "${scriptPath}" '${arg}'`, (error, stdout, stderr) => {
+    if (error) {
+      console.error('Python error:', stderr);
+      return res.status(500).json({ error: 'Python script failed', detail: stderr });
+    }
+    try {
+      const result = JSON.parse(stdout);
+      // Save to state
+      state.ldpc.dataBits   = dataBits;
+      state.ldpc.codeword   = result.codeword;
+      state.ldpc.corrupted  = [];
+      state.ldpc.flippedPos = null;
+      state.ldpc.encoded    = true;
+      state.ldpc.corrupted_flag = false;
+      res.json(result);
+    } catch (e) {
+      res.status(500).json({ error: 'Could not parse Python output', raw: stdout });
+    }
+  });
+});
+
+
+// ROUTE: POST /ldpc/corrupt
+// Node picks a random bit position and flips it — no Python needed, 
+// this is a simple JS operation
+app.post('/ldpc/corrupt', (req, res) => {
+  if (!state.ldpc.encoded) {
+    return res.status(400).json({ error: 'Encode first before corrupting' });
+  }
+
+  const codeword = [...state.ldpc.codeword];
+  
+  // Pick a random position in the DATA portion only (more realistic)
+  const flipPos = Math.floor(Math.random() * state.ldpc.dataBits.length);
+  
+  codeword[flipPos] = codeword[flipPos] ^ 1; // XOR with 1 flips the bit
+
+  state.ldpc.corrupted      = codeword;
+  state.ldpc.flippedPos     = flipPos;
+  state.ldpc.corrupted_flag = true;
+
+  res.json({
+    corrupted:  codeword,
+    flippedPos: flipPos,
+    originalBit: state.ldpc.codeword[flipPos], // what it was before
+    newBit:      codeword[flipPos]              // what it became
+  });
+});
+
+
+// ROUTE: POST /ldpc/detect
+// Passes corrupted codeword to Python — Python computes syndrome
+app.post('/ldpc/detect', (req, res) => {
+  if (!state.ldpc.corrupted_flag) {
+    return res.status(400).json({ error: 'No corruption injected yet' });
+  }
+
+  const scriptPath = path.join(__dirname, 'python', 'ldpc.py');
+  const arg = JSON.stringify({
+    action:    'detect',
+    codeword:  state.ldpc.corrupted,
+    numData:   state.ldpc.dataBits.length
+  });
+
+  exec(`python3 "${scriptPath}" '${arg}'`, (error, stdout, stderr) => {
+    if (error) {
+      console.error('Python error:', stderr);
+      return res.status(500).json({ error: 'Python script failed', detail: stderr });
+    }
+    try {
+      const result = JSON.parse(stdout);
+      res.json(result);
+    } catch (e) {
+      res.status(500).json({ error: 'Could not parse Python output', raw: stdout });
+    }
+  });
+});
+
+
+// ROUTE: POST /ldpc/correct
+// Passes corrupted codeword + detected error position to Python
+// Python corrects, verifies syndrome is zero, returns clean codeword
+app.post('/ldpc/correct', (req, res) => {
+  if (!state.ldpc.corrupted_flag) {
+    return res.status(400).json({ error: 'Nothing to correct' });
+  }
+
+  const scriptPath = path.join(__dirname, 'python', 'ldpc.py');
+  const arg = JSON.stringify({
+    action:    'correct',
+    codeword:  state.ldpc.corrupted,
+    numData:   state.ldpc.dataBits.length
+  });
+
+  exec(`python3 "${scriptPath}" '${arg}'`, (error, stdout, stderr) => {
+    if (error) {
+      console.error('Python error:', stderr);
+      return res.status(500).json({ error: 'Python script failed', detail: stderr });
+    }
+    try {
+      const result = JSON.parse(stdout);
+      // Update state to clean
+      if (result.verified) {
+        state.ldpc.corrupted      = [];
+        state.ldpc.corrupted_flag = false;
+      }
+      res.json(result);
+    } catch (e) {
+      res.status(500).json({ error: 'Could not parse Python output', raw: stdout });
+    }
+  });
+});
+
+
+// ROUTE: GET /ldpc/status
+// Frontend can call this anytime to get current LDPC state
+app.get('/ldpc/status', (req, res) => {
+  res.json(state.ldpc);
+});
+
 // Start server
 const PORT = 3001;
 app.listen(PORT, () => {
