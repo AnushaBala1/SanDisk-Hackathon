@@ -1,11 +1,12 @@
 import { useState } from 'react';
-import P1BadBlockManager from './P1BadBlockManager';
+import P1BadBlockManager from './P1badblockmanager.jsx';
+import P2LogicMinimization from './P2logicminimization.jsx';
 
 const MODULES = [
-  { id: 'P1', label: 'BAD BLOCK MANAGER', available: true },
-  { id: 'P2', label: 'LOGIC MINIMIZATION', available: false },
-  { id: 'P3', label: 'LDPC', available: false },
-  { id: 'P4', label: 'OOB COMMUNICATION', available: false },
+  { id: 'P1', label: 'BAD BLOCK MANAGER',        available: true  },
+  { id: 'P2', label: 'LOGIC MINIMIZATION',        available: true  },
+  { id: 'P3', label: 'LDPC',                      available: false },
+  { id: 'P4', label: 'OOB COMMUNICATION',         available: false },
   { id: 'P5', label: 'PREDICTIVE FAILURE ANALYSIS', available: false },
 ];
 
@@ -31,7 +32,6 @@ export default function SimulationPage() {
       <div className="sticky top-16 z-40 bg-[#0D0D0D] border-b border-[#2A2A2A] px-8">
         <div className="max-w-7xl mx-auto">
           <div className="flex items-center gap-0 overflow-x-auto">
-            {/* Label */}
             <span className="text-[#A0A0A0] font-mono text-[11px] tracking-[0.25em] uppercase pr-6 whitespace-nowrap py-4 border-r border-[#2A2A2A] mr-4 shrink-0">
               CORE MODULES
             </span>
@@ -74,6 +74,7 @@ export default function SimulationPage() {
       {/* Module Content */}
       <div>
         {activeModule === 'P1' && <P1BadBlockManager />}
+        {activeModule === 'P2' && <P2LogicMinimization />}
       </div>
     </div>
   );
