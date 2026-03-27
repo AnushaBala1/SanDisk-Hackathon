@@ -152,7 +152,7 @@ export default function P1BadBlockManager() {
               <button
                 onClick={handleReset}
                 disabled={loading}
-                className="border border-[#5B403F] text-[#C0C0C0] hover:border-[#E63946] hover:text-[#E63946] px-5 py-2.5 font-['Space_Grotesk'] font-bold text-sm transition-all active:scale-95 flex items-center gap-2 disabled:opacity-40"
+                className="border border-[#5B403F] text-[#e4bebc] hover:border-[#E63946] hover:text-[#E63946] px-5 py-2.5 font-['Space_Grotesk'] font-bold text-sm transition-all active:scale-95 flex items-center gap-2 disabled:opacity-40"
               >
                 <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>restart_alt</span>
                 Reset
@@ -185,17 +185,17 @@ export default function P1BadBlockManager() {
         <div className="max-w-7xl mx-auto flex items-center gap-8">
           <div className="flex items-center gap-2">
             <div className="w-3 h-3 bg-[#1C1B1B] border border-[#404040]" />
-            <span className="font-mono text-[#C0C0C0] text-xs">OK</span>
+            <span className="font-mono text-[#e4bebc] text-xs">OK</span>
             <span className="font-mono text-[#A0A0A0] text-xs ml-1">({okCount})</span>
           </div>
           <div className="flex items-center gap-2">
             <div className="w-3 h-3" style={{ backgroundColor: 'rgba(230,57,70,0.85)' }} />
-            <span className="font-mono text-[#C0C0C0] text-xs">BAD</span>
+            <span className="font-mono text-[#e4bebc] text-xs">BAD</span>
             <span className="font-mono text-[#E63946] text-xs ml-1">({badCount})</span>
           </div>
           <div className="flex items-center gap-2">
             <div className="w-3 h-3" style={{ backgroundColor: 'rgba(255,140,140,0.55)' }} />
-            <span className="font-mono text-[#C0C0C0] text-xs">WORN</span>
+            <span className="font-mono text-[#e4bebc] text-xs">WORN</span>
             <span className="font-mono text-[#FF8C8C] text-xs ml-1">({wornCount})</span>
           </div>
           <div className="ml-auto font-mono text-[#A0A0A0] text-xs">
@@ -257,7 +257,7 @@ export default function P1BadBlockManager() {
                   key={stat.label}
                   className="bg-[#111111] border border-[#2A2A2A] border-t-2 border-t-[#E63946] p-5"
                 >
-                  <div className="text-[#C0C0C0] font-mono text-xs tracking-wider mb-2 uppercase">
+                  <div className="text-[#e4bebc] font-mono text-xs tracking-wider mb-2 uppercase">
                     {stat.label}
                   </div>
                   <div className={`font-mono text-3xl font-bold ${stat.color}`}>
@@ -271,7 +271,7 @@ export default function P1BadBlockManager() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* Flat array */}
               <div className="bg-[#111111] border border-[#2A2A2A] p-5">
-                <div className="text-[#C0C0C0] font-mono text-xs tracking-wider mb-1">
+                <div className="text-[#e4bebc] font-mono text-xs tracking-wider mb-1">
                   FLAT ARRAY (OLD WAY)
                 </div>
                 <div className="text-[#E63946] font-mono text-3xl font-bold mb-1">
@@ -288,7 +288,7 @@ export default function P1BadBlockManager() {
               {/* XOR + Bloom */}
               <div className="bg-[#111111] border border-[#4CAF50]/40 p-5">
                 <div className="flex items-center justify-between mb-1">
-                  <div className="text-[#C0C0C0] font-mono text-xs tracking-wider">
+                  <div className="text-[#e4bebc] font-mono text-xs tracking-wider">
                     XOR + BLOOM HYBRID
                   </div>
                   <div className="bg-[#4CAF50]/10 border border-[#4CAF50]/40 text-[#4CAF50] font-mono text-[10px] px-2 py-0.5">

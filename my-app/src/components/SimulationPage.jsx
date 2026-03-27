@@ -1,12 +1,13 @@
 import { useState } from 'react';
-import P1BadBlockManager from './P1badblockmanager.jsx';
+import P1BadBlockManager   from './P1badblockmanager.jsx';
 import P2LogicMinimization from './P2logicminimization.jsx';
+import P3LDPC              from './P3ldpc.jsx';
 
 const MODULES = [
-  { id: 'P1', label: 'BAD BLOCK MANAGER',        available: true  },
-  { id: 'P2', label: 'LOGIC MINIMIZATION',        available: true  },
-  { id: 'P3', label: 'LDPC',                      available: false },
-  { id: 'P4', label: 'OOB COMMUNICATION',         available: false },
+  { id: 'P1', label: 'BAD BLOCK MANAGER',          available: true  },
+  { id: 'P2', label: 'LOGIC MINIMIZATION',          available: true  },
+  { id: 'P3', label: 'LDPC',                        available: true  },
+  { id: 'P4', label: 'OOB COMMUNICATION',           available: false },
   { id: 'P5', label: 'PREDICTIVE FAILURE ANALYSIS', available: false },
 ];
 
@@ -35,7 +36,6 @@ export default function SimulationPage() {
             <span className="text-[#A0A0A0] font-mono text-[11px] tracking-[0.25em] uppercase pr-6 whitespace-nowrap py-4 border-r border-[#2A2A2A] mr-4 shrink-0">
               CORE MODULES
             </span>
-
             {MODULES.map(mod => (
               <button
                 key={mod.id}
@@ -50,20 +50,22 @@ export default function SimulationPage() {
               >
                 <span className={`font-bold mr-1.5 ${
                   activeModule === mod.id ? 'text-[#E63946]' :
-                  mod.available ? 'text-[#E63946]/60' :
-                  'text-[#5B403F]'
+                  mod.available           ? 'text-[#E63946]/60' :
+                                            'text-[#5B403F]'
                 }`}>
                   {mod.id}
                 </span>
                 <span className={
                   activeModule === mod.id ? 'text-white' :
-                  mod.available ? 'text-[#C0C0C0] hover:text-white' :
-                  'text-[#666666]'
+                  mod.available           ? 'text-[#C0C0C0] hover:text-white' :
+                                            'text-[#666666]'
                 }>
                   {mod.label}
                 </span>
                 {!mod.available && (
-                  <span className="ml-2 text-[#555555] text-[9px] border border-[#333333] px-1 py-0.5">LOCKED</span>
+                  <span className="ml-2 text-[#555555] text-[9px] border border-[#333333] px-1 py-0.5">
+                    LOCKED
+                  </span>
                 )}
               </button>
             ))}
@@ -75,6 +77,7 @@ export default function SimulationPage() {
       <div>
         {activeModule === 'P1' && <P1BadBlockManager />}
         {activeModule === 'P2' && <P2LogicMinimization />}
+        {activeModule === 'P3' && <P3LDPC />}
       </div>
     </div>
   );
