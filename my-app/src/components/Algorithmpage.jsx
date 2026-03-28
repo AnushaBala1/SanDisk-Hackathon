@@ -1,41 +1,44 @@
 import { useState } from 'react';
-import P1BadBlockManager    from './P1badblockmanager.jsx';
-import P2LogicMinimization  from './P2logicminimization.jsx';
-import P3LDPC               from './P3ldpc.jsx';
-import P4OutOfBand          from './P4OutOfBand.jsx';
-import P5PredictiveFailure  from './P5PredictiveFailure.jsx';
+import AlgoP1BadBlockManager   from './Algop1badblockmanager.jsx';
+import AlgoP2LogicMinimization from './Algop2logicminimization.jsx';
+import AlgoP3LDPC              from './Algop3ldpc.jsx';
 
 const MODULES = [
   { id: 'P1', label: 'BAD BLOCK MANAGER',          available: true  },
   { id: 'P2', label: 'LOGIC MINIMIZATION',          available: true  },
   { id: 'P3', label: 'LDPC',                        available: true  },
-  { id: 'P4', label: 'OOB COMMUNICATION',           available: true  },
-  { id: 'P5', label: 'PREDICTIVE FAILURE ANALYSIS', available: true  },
+  { id: 'P4', label: 'OOB COMMUNICATION',           available: false },
+  { id: 'P5', label: 'PREDICTIVE FAILURE ANALYSIS', available: false },
 ];
 
-export default function SimulationPage() {
+export default function AlgorithmPage() {
   const [activeModule, setActiveModule] = useState('P1');
 
   return (
     <div className="min-h-screen bg-[#080808] text-white">
-      {/* Page Header */}
-      <div className="px-8 pt-24 pb-6 border-b border-[#E63946]/30 bg-[#080808]">
+
+      {/* ── Hero Intro — matches reference image ── */}
+      <div className="px-8 pt-28 pb-20 bg-[#080808]">
         <div className="max-w-7xl mx-auto">
-          <div className="inline-flex items-center px-4 py-1.5 bg-[#1A0000] border border-[#E63946]/50 text-[#FF4D4D] text-xs font-mono tracking-[0.15em] uppercase mb-5">
-            <span className="w-1.5 h-1.5 bg-[#E63946] rounded-full mr-2 animate-pulse" />
-            LIVE SIMULATION
-          </div>
-          <h1 className="text-4xl md:text-5xl font-['Space_Grotesk'] font-black tracking-tighter text-white leading-none">
-            NANDGuard protecting a simulated SSD
+          <p className="font-['Space_Grotesk'] font-bold text-xs tracking-[0.25em] uppercase text-[#E63946] mb-6">
+            ALGORITHMS
+          </p>
+          <h1 className="text-6xl md:text-7xl lg:text-8xl font-['Space_Grotesk'] font-black tracking-tighter leading-[1.0] mb-8">
+            <span className="text-white">Five algorithms.</span>
+            <br />
+            <span className="text-[#E63946]">Every one interactive.</span>
           </h1>
+          <p className="text-[#A0A0A0] font-['Space_Grotesk'] text-base max-w-md leading-relaxed">
+            Precision-engineered logic for the next generation of NAND reliability. Each module below is a live simulation of the firmware running in our Obsidian Command architecture.
+          </p>
         </div>
       </div>
 
-      {/* Core Modules Tab Bar */}
+      {/* ── Core Modules Tab Bar ── */}
       <div className="sticky top-16 z-40 bg-[#0D0D0D] border-b border-[#2A2A2A] px-8">
         <div className="max-w-7xl mx-auto">
           <div className="flex items-center gap-0 overflow-x-auto">
-            <span className="text-[#e4bebc] font-mono text-[11px] tracking-[0.25em] uppercase pr-6 whitespace-nowrap py-4 border-r border-[#2A2A2A] mr-4 shrink-0">
+            <span className="text-[#A0A0A0] font-mono text-[11px] tracking-[0.25em] uppercase pr-6 whitespace-nowrap py-4 border-r border-[#2A2A2A] mr-4 shrink-0">
               CORE MODULES
             </span>
             {MODULES.map(mod => (
@@ -59,7 +62,7 @@ export default function SimulationPage() {
                 </span>
                 <span className={
                   activeModule === mod.id ? 'text-white' :
-                  mod.available           ? 'text-[#e4bebc] hover:text-white' :
+                  mod.available           ? 'text-[#C0C0C0] hover:text-white' :
                                             'text-[#666666]'
                 }>
                   {mod.label}
@@ -75,13 +78,11 @@ export default function SimulationPage() {
         </div>
       </div>
 
-      {/* Module Content */}
+      {/* ── Module Content ── */}
       <div>
-        {activeModule === 'P1' && <P1BadBlockManager />}
-        {activeModule === 'P2' && <P2LogicMinimization />}
-        {activeModule === 'P3' && <P3LDPC />}
-        {activeModule === 'P4' && <P4OutOfBand />}
-        {activeModule === 'P5' && <P5PredictiveFailure />}
+        {activeModule === 'P1' && <AlgoP1BadBlockManager />}
+        {activeModule === 'P2' && <AlgoP2LogicMinimization />}
+        {activeModule === 'P3' && <AlgoP3LDPC />}
       </div>
     </div>
   );
