@@ -1,235 +1,316 @@
-/**
- * server.js — NANDGuard Unified Backend (P1–P4)
- *
- * Now includes Start/Stop control for P4 OOB Simulation
- * Run: node server.js
- */
+// server.js — NANDGuard Unified Backend (P1–P4)
 
-const express          = require('express');
-const http             = require('http');
-const { Server }       = require('socket.io');
-const { WebSocketServer } = require('ws');
-const cors             = require('cors');
-const { execFile, spawn } = require('child_process');
-const path             = require('path');
-const fs               = require('fs');
-const state            = require('./state');
-
-let oobSimProcess = null;   // Global variable to track oob_sim.py process
-
-// ─── App + HTTP server ────────────────────────────────────────────────────────
-const app    = express();
+const express = require('express');
+const http = require('http');
+const cors = require('cors');
+const { execFile} = require('child_process');
+const path = require('path');
+const state = require('./state');
+const multer  = require('multer');
+const FormData = require('form-data');
+const upload  = multer({ storage: multer.memoryStorage() });
+const app = express();
 const server = http.createServer(app);
+
 
 app.use(cors());
 app.use(express.json());
 
-// Request logger
+// Logger
 app.use((req, res, next) => {
   console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
   next();
 });
 
-// ─── Socket.io ───────────────────────────────────────────────────────────────
-const io = new Server(server, {
-  cors: { origin: '*', methods: ['GET', 'POST'] }
+
+// ─────────────────────────────────────────────────────────────
+// P1 — BAD BLOCK MANAGER
+// ─────────────────────────────────────────────────────────────
+
+app.get('/status', (req, res) => {
+  res.json({
+    totalBlocks: state.totalBlocks,
+    badBlockCount: state.badBlocks.length,
+    badBlocks: state.badBlocks,
+    falseNegatives: 0
+  });
 });
 
-// ─── OOB In-Memory State ─────────────────────────────────────────────────────
-const OOB_MAX_HISTORY = 100;
-const oobHistory  = [];
-let   oobLatest   = null;
-const oobLastGasps = [];
+app.post('/inject', (req, res) => {
+  const count = Math.min(req.body.count || 20, 100);
+  const newBad = [];
 
-const ALERT_NAMES  = { 0: 'OK', 1: 'WARN', 2: 'CRITICAL', 3: 'LAST_GASP' };
-const ALERT_COLORS = {
-  0: '#22c55e',
-  1: '#f59e0b',
-  2: '#ef4444',
-  3: '#7c3aed',
-};
-
-// ─── Raw WebSocket Server (Port 3002) ────────────────────────────────────────
-const WS_PORT = 3002;
-const wss = new WebSocketServer({ port: WS_PORT });
-
-wss.on('listening', () => {
-  console.log(`[oob-ws] Raw WebSocket listening on ws://localhost:${WS_PORT}`);
-});
-
-wss.on('connection', (ws, req) => {
-  console.log(`[oob-ws] oob_sim.py connected from ${req.socket.remoteAddress}`);
-
-  ws.on('message', (data) => {
-    let msg;
-    try {
-      msg = JSON.parse(data.toString());
-    } catch (e) {
-      console.error('[oob-ws] Bad JSON:', e.message);
-      return;
+  while (newBad.length < count) {
+    const idx = Math.floor(Math.random() * state.totalBlocks);
+    if (!state.badBlocks.includes(idx) && !newBad.includes(idx)) {
+      newBad.push(idx);
     }
+  }
 
-    const enriched = {
-      ...msg,
-      alert_color:     ALERT_COLORS[msg.alert] ?? '#6b7280',
-      alert_label:     ALERT_NAMES[msg.alert]  ?? 'UNKNOWN',
-      raw_hex_display: msg.raw_hex ? msg.raw_hex.match(/.{2}/g).join(' ') : '',
+  state.badBlocks = [...state.badBlocks, ...newBad].sort((a, b) => a - b);
+
+  res.json({
+    success: true,
+    badBlocks: state.badBlocks,
+    injected: newBad
+  });
+});
+
+app.post('/reset', (req, res) => {
+  state.badBlocks = [];
+  res.json({ success: true });
+});
+
+app.post('/run-algorithm', (req, res) => {
+  const scriptPath = path.join(__dirname, 'python', 'bad_block.py');
+  const arg = JSON.stringify(state.badBlocks);
+
+  execFile('python', [scriptPath, arg], (err, stdout) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(JSON.parse(stdout.trim()));
+  });
+});
+
+
+// ─────────────────────────────────────────────────────────────
+// P2 — LOGIC MINIMIZER
+// ─────────────────────────────────────────────────────────────
+
+app.get('/logic/status', (req, res) => {
+  const func = state.functions[state.currentFunction];
+  res.json(func);
+});
+
+app.post('/logic/switch', (req, res) => {
+  const { funcName } = req.body;
+  state.currentFunction = funcName;
+  res.json({ success: true });
+});
+
+app.post('/logic/run', (req, res) => {
+  const func = state.functions[state.currentFunction];
+  const scriptPath = path.join(__dirname, 'python', 'logic_minimizer.py');
+
+  execFile('python', [scriptPath, JSON.stringify(func)], (err, stdout) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(JSON.parse(stdout.trim()));
+  });
+});
+
+
+// ─────────────────────────────────────────────────────────────
+// P3 — LDPC (FIXED STATE SYNC)
+// ─────────────────────────────────────────────────────────────
+
+app.get('/ldpc/status', (req, res) => {
+  res.json(state.ldpc);
+});
+
+app.post('/ldpc/encode', (req, res) => {
+  const { dataBits } = req.body;
+  const scriptPath = path.join(__dirname, 'python', 'ldpc.py');
+
+  execFile('python', [scriptPath, JSON.stringify({
+    action: 'encode',
+    dataBits
+  })], (err, stdout) => {
+    if (err) return res.status(500).json({ error: err.message });
+
+    const result = JSON.parse(stdout.trim());
+
+    state.ldpc = {
+      dataBits,
+      codeword: result.codeword,
+      corrupted: [],
+      flippedPos: null,
+      corrupted_flag: false,
+      encoded: true
     };
 
-    oobLatest = enriched;
-    oobHistory.unshift(enriched);
-    if (oobHistory.length > OOB_MAX_HISTORY) oobHistory.pop();
+    res.json(result);
+  });
+});
 
-    if (msg.alert === 3) {
-      oobLastGasps.push(enriched);
-      io.emit('last_gasp', enriched);
+app.post('/ldpc/corrupt', (req, res) => {
+  if (!state.ldpc.encoded)
+    return res.status(400).json({ error: 'Encode first' });
+
+  const cw = [...state.ldpc.codeword];
+  const pos = Math.floor(Math.random() * cw.length);
+
+  cw[pos] ^= 1;
+
+  state.ldpc.corrupted = cw;
+  state.ldpc.flippedPos = pos;
+  state.ldpc.corrupted_flag = true;
+
+  res.json({ corrupted: cw, flippedPos: pos });
+});
+
+app.post('/ldpc/detect', (req, res) => {
+  const scriptPath = path.join(__dirname, 'python', 'ldpc.py');
+
+  execFile('python', [scriptPath, JSON.stringify({
+    action: 'detect',
+    codeword: state.ldpc.corrupted,
+    numData: state.ldpc.dataBits.length
+  })], (err, stdout) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(JSON.parse(stdout.trim()));
+  });
+});
+
+app.post('/ldpc/correct', (req, res) => {
+  const scriptPath = path.join(__dirname, 'python', 'ldpc.py');
+
+  execFile('python', [scriptPath, JSON.stringify({
+    action: 'correct',
+    codeword: state.ldpc.corrupted,
+    numData: state.ldpc.dataBits.length
+  })], (err, stdout) => {
+    if (err) return res.status(500).json({ error: err.message });
+
+    const result = JSON.parse(stdout.trim());
+
+    if (result.verified) {
+      state.ldpc.corrupted = [];
+      state.ldpc.flippedPos = null;
+      state.ldpc.corrupted_flag = false;
     }
 
-    io.emit('oob_packet', enriched);
-
-    console.log(
-      `[oob] t=${String(msg.tick).padStart(4, '0')} | ${enriched.alert_label.padEnd(9)} | ` +
-      `fail=${msg.snapshot?.failure_prob}% | wear=${msg.snapshot?.wear_level_pct}%`
-    );
-  });
-
-  ws.on('close', () => console.log('[oob-ws] oob_sim.py disconnected.'));
-});
-
-// ─── Socket.io Connection ────────────────────────────────────────────────────
-io.on('connection', (socket) => {
-  console.log(`[socket.io] Dashboard connected: ${socket.id}`);
-  socket.emit('init', {
-    latest:    oobLatest,
-    history:   oobHistory.slice(0, 50),
-    lastGasps: oobLastGasps,
-    simulationRunning: !!oobSimProcess
-  });
-
-  socket.on('disconnect', () => {
-    console.log(`[socket.io] Dashboard disconnected: ${socket.id}`);
+    res.json(result);
   });
 });
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// ROUTES
-// ═══════════════════════════════════════════════════════════════════════════════
 
-app.get('/', (req, res) => {
-  res.json({
-    message: 'NANDGuard Unified Backend (P1–P4) is running!',
-    modules: {
-      P1_BadBlock: ['GET /status', 'POST /inject', 'POST /reset', 'POST /run-algorithm'],
-      P2_LogicMin: ['GET /logic/status', 'POST /logic/switch', 'POST /logic/run'],
-      P3_LDPC:     ['GET /ldpc/*'],
-      P4_OOB:      ['GET /oob/*', 'POST /oob/start', 'POST /oob/stop', '+ Socket.io events']
-    },
-    ports: { http_socketio: 3001, oob_websocket: 3002 }
-  });
-});
+/// ─────────────────────────────────────────────────────────────
+// P4 — OOB FASTAPI BRIDGE
+// ─────────────────────────────────────────────────────────────
 
-// P1, P2, P3 routes remain the same (unchanged from your original code)
-// ... [P1, P2, P3 routes here - copy from previous version I gave] ...
 
-// ─── P4 : OOB Control Routes (NEW) ───────────────────────────────────────────
 
-/** Start OOB Simulation */
-/** Start OOB Simulation - Fixed for python/ subfolder */
-app.post('/oob/start', (req, res) => {
-  if (oobSimProcess) {
-    return res.json({ success: false, message: 'OOB Simulation is already running' });
+// Control FastAPI from Node (so React buttons still work)
+
+
+
+app.post('/model/score', upload.single('file'), async (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ error: 'No file uploaded. Send field name "file".' });
   }
 
-  // Correct path: python/oob_sim.py
-  const scriptPath = path.join(__dirname, 'python', 'oob_sim.py');
-
-  if (!fs.existsSync(scriptPath)) {
-    return res.status(404).json({ 
-      success: false, 
-      message: `oob_sim.py not found at: ${scriptPath}` 
-    });
-  }
+  const form = new FormData();
+  form.append('file', req.file.buffer, {
+    filename: req.file.originalname || 'upload.csv',
+    contentType: req.file.mimetype || 'text/csv',
+  });
 
   try {
-    console.log(`[P4] Starting oob_sim.py from: ${scriptPath}`);
+    // ✅ Use pipe() instead of fetch — lets form-data control the boundary
+    await new Promise((resolve, reject) => {
+      const options = {
+        hostname: 'localhost',
+        port: 8000,
+        path: '/score',
+        method: 'POST',
+        headers: form.getHeaders(),  // boundary is correctly set here
+      };
 
-    oobSimProcess = spawn('python', [scriptPath], { 
-      stdio: 'pipe',
-      cwd: path.join(__dirname, 'python')   // Important: run from python folder
-    });
+      const request = http.request(options, (fastapiRes) => {
+        let body = '';
+        fastapiRes.on('data', chunk => body += chunk);
+        fastapiRes.on('end', () => {
+          try {
+            const data = JSON.parse(body);
+            res.status(fastapiRes.statusCode).json(data);
+          } catch (e) {
+            res.status(500).json({ error: 'Invalid JSON from model server', detail: body });
+          }
+          resolve();
+        });
+      });
 
-    oobSimProcess.stdout.on('data', (data) => {
-      console.log(`[oob_sim] ${data.toString().trim()}`);
-    });
-
-    oobSimProcess.stderr.on('data', (data) => {
-      console.error(`[oob_sim ERROR] ${data.toString().trim()}`);
-    });
-
-    oobSimProcess.on('close', (code) => {
-      console.log(`[oob_sim] Process exited with code ${code}`);
-      oobSimProcess = null;
-      io.emit('simulation_status', { running: false });
-    });
-
-    console.log('[P4] OOB Simulation started successfully');
-    io.emit('simulation_status', { running: true });
-
-    res.json({ 
-      success: true, 
-      message: 'OOB Simulation started successfully' 
+      request.on('error', reject);
+      form.pipe(request);
     });
   } catch (err) {
-    console.error('[P4] Failed to start oob_sim.py:', err);
-    res.status(500).json({ success: false, message: 'Failed to start simulation' });
+    res.status(502).json({ error: 'Model server unreachable', detail: err.message });
   }
 });
 
-/** Stop OOB Simulation */
-app.post('/oob/stop', (req, res) => {
-  if (!oobSimProcess) {
-    return res.json({ success: false, message: 'OOB Simulation is not running' });
+app.post('/model/stream', upload.single('file'), async (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ error: 'No file uploaded. Send field name "file".' });
   }
 
-  oobSimProcess.kill();
-  oobSimProcess = null;
-  console.log('[P4] OOB Simulation stopped');
-  io.emit('simulation_status', { running: false });
-
-  res.json({ success: true, message: 'OOB Simulation stopped' });
-});
-
-/** Get current simulation status */
-app.get('/oob/status', (req, res) => {
-  res.json({
-    latest:    oobLatest,
-    history:   oobHistory.slice(0, 50),
-    lastGasps: oobLastGasps,
-    simulationRunning: !!oobSimProcess,
-    connected: true,
+  const form = new FormData();
+  form.append('file', req.file.buffer, {
+    filename: req.file.originalname || 'upload.csv',
+    contentType: req.file.mimetype || 'text/csv',
   });
+
+  try {
+    await new Promise((resolve, reject) => {
+      const options = {
+        hostname: 'localhost',
+        port: 8000,
+        path: '/stream',
+        method: 'POST',
+        headers: form.getHeaders(),
+      };
+
+      const request = http.request(options, (fastapiRes) => {
+        if (fastapiRes.statusCode !== 200) {
+          let body = '';
+          fastapiRes.on('data', chunk => body += chunk);
+          fastapiRes.on('end', () => {
+            try { res.status(fastapiRes.statusCode).json(JSON.parse(body)); }
+            catch { res.status(fastapiRes.statusCode).send(body); }
+            resolve();
+          });
+          return;
+        }
+
+        // ── SSE headers ──────────────────────────────────────────
+        res.setHeader('Content-Type', 'text/event-stream');
+        res.setHeader('Cache-Control', 'no-cache');
+        res.setHeader('Connection', 'keep-alive');
+        res.flushHeaders();
+
+        // Pipe FastAPI SSE stream directly to browser
+        fastapiRes.pipe(res);
+        fastapiRes.on('end', resolve);
+        fastapiRes.on('error', reject);
+      });
+
+      request.on('error', (err) => {
+        if (!res.headersSent) {
+          res.status(502).json({ error: 'Model server unreachable', detail: err.message });
+        } else {
+          res.write(`data: ${JSON.stringify({ error: err.message, done: true })}\n\n`);
+          res.end();
+        }
+        reject(err);
+      });
+
+      form.pipe(request);
+    });
+  } catch (err) {
+    if (!res.headersSent) {
+      res.status(502).json({ error: 'Model server unreachable', detail: err.message });
+    }
+  }
 });
 
-// P4 other routes
-app.get('/oob/history', (req, res) => res.json({ history: oobHistory }));
-app.get('/oob/lastgasp', (req, res) => res.json({ events: oobLastGasps }));
+// ─────────────────────────────────────────────────────────────
+// START SERVER
+// ─────────────────────────────────────────────────────────────
 
-// ─── 404 fallback ─────────────────────────────────────────────────────────────
+const PORT = 3001;
+server.listen(PORT, () => {
+  console.log(`✅ NANDGuard Unified Backend running on http://localhost:${PORT}`);
+});
+
+// 404
 app.use((req, res) => {
-  res.status(404).json({ error: 'Route not found', message: `No route for ${req.method} ${req.url}` });
-});
-
-// ─── Start Server ─────────────────────────────────────────────────────────────
-const HTTP_PORT = 3001;
-
-server.listen(HTTP_PORT, () => {
-  console.log('');
-  console.log('╔══════════════════════════════════════════════════════╗');
-  console.log('║         NANDGuard Unified Backend (P1–P4)            ║');
-  console.log('╠══════════════════════════════════════════════════════╣');
-  console.log(`║  REST + Socket.io →  http://localhost:${HTTP_PORT}         ║`);
-  console.log(`║  OOB WebSocket    →  ws://localhost:${WS_PORT}           ║`);
-  console.log('╚══════════════════════════════════════════════════════╝');
-  console.log('P4 Controls: POST /oob/start and POST /oob/stop');
-  console.log('');
+  res.status(404).json({ error: 'Route not found' });
 });
