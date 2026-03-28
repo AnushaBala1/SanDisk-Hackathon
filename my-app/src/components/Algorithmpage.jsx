@@ -2,13 +2,15 @@ import { useState } from 'react';
 import AlgoP1BadBlockManager   from './Algop1badblockmanager.jsx';
 import AlgoP2LogicMinimization from './Algop2logicminimization.jsx';
 import AlgoP3LDPC              from './Algop3ldpc.jsx';
+import AlgoP4OOBCommunication  from './Algop4oobcommunication.jsx';
+import AlgoP5PredictiveFailure from './Algop5predictivefailure.jsx';
 
 const MODULES = [
   { id: 'P1', label: 'BAD BLOCK MANAGER',          available: true  },
   { id: 'P2', label: 'LOGIC MINIMIZATION',          available: true  },
   { id: 'P3', label: 'LDPC',                        available: true  },
-  { id: 'P4', label: 'OOB COMMUNICATION',           available: false },
-  { id: 'P5', label: 'PREDICTIVE FAILURE ANALYSIS', available: false },
+  { id: 'P4', label: 'OOB COMMUNICATION',           available: true  },
+  { id: 'P5', label: 'PREDICTIVE FAILURE ANALYSIS', available: true  },
 ];
 
 export default function AlgorithmPage() {
@@ -83,6 +85,8 @@ export default function AlgorithmPage() {
         {activeModule === 'P1' && <AlgoP1BadBlockManager />}
         {activeModule === 'P2' && <AlgoP2LogicMinimization />}
         {activeModule === 'P3' && <AlgoP3LDPC />}
+        {activeModule === 'P4' && <AlgoP4OOBCommunication />}
+        {activeModule === 'P5' && <AlgoP5PredictiveFailure />}
       </div>
     </div>
   );
