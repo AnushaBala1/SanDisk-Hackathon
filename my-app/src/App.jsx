@@ -6,6 +6,7 @@ import SolutionSection from './components/SolutionSection';
 import CTABanner from './components/CTABanner';
 import Footer from './components/Footer';
 import SimulationPage from './components/SimulationPage';
+import AlgorithmPage from './components/Algorithmpage';
 
 function App() {
   const [currentPage, setCurrentPage] = useState('home');
@@ -24,7 +25,10 @@ function App() {
           <Hero onSimulationClick={() => handleNavigate('simulation')} />
           <ProblemSection />
           <SolutionSection />
-          <CTABanner onSimulationClick={() => handleNavigate('simulation')} />
+          <CTABanner
+            onSimulationClick={() => handleNavigate('simulation')}
+            onAlgorithmsClick={() => handleNavigate('algorithms')}
+          />
           <Footer />
         </>
       )}
@@ -32,6 +36,13 @@ function App() {
       {currentPage === 'simulation' && (
         <>
           <SimulationPage />
+          <Footer />
+        </>
+      )}
+
+      {currentPage === 'algorithms' && (
+        <>
+          <AlgorithmPage />
           <Footer />
         </>
       )}

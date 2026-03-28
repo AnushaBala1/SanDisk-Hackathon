@@ -39,3 +39,11 @@
 .section-container {
     @apply max-w-7xl mx-auto px-8;
 }
+.flowchart-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.flowchart-scroll {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
