@@ -1,109 +1,91 @@
 import { useState, useEffect, useRef } from 'react';
-import SimLoader from './Simloader.jsx';
+import io from 'socket.io-client';
 
 export default function P4OutOfBand() {
   const [isRunning, setIsRunning] = useState(false);
   const [livePacket, setLivePacket] = useState(null);
   const [history, setHistory] = useState([]);
-  const [tick, setTick] = useState(0);
+  const [lastGaspEvents, setLastGaspEvents] = useState([]);
 
-  const intervalRef = useRef(null);
-  const smartGenRef = useRef({
-    t: 0,
-    power_on_hours: 8760,
-    reallocated: 0,
-    uncorrectable: 0,
-  });
+  const socketRef = useRef(null);
 
-  const generatePacket = () => {
-    const gen = smartGenRef.current;
-    gen.t += 1;
-    const t = gen.t;
+  // Connect to Socket.io backend
+  useEffect(() => {
+    const socket = io('http://localhost:3001'); // Change if your backend port differs
+    socketRef.current = socket;
 
-    const rawProb = 100 / (1 + Math.exp(-0.025 * (t - 280)));
-    const failure_prob = Math.max(0, Math.min(100, Math.floor(rawProb + (Math.random() - 0.5) * 4)));
-    const wear_level_pct = Math.min(100, Math.floor(t * 0.22 + (Math.random() - 0.5) * 2));
-
-    let bad_block_count;
-    if (t < 200) bad_block_count = Math.floor(t * 0.1 + (Math.random() - 0.5) * 4);
-    else if (t < 300) bad_block_count = Math.floor(20 + (t - 200) * 1.5 + (Math.random() - 0.5) * 10);
-    else bad_block_count = Math.floor(170 + (t - 300) * 3.0 + (Math.random() - 0.5) * 16);
-
-    bad_block_count = Math.max(0, bad_block_count);
-
-    const ldpc_fail_rate = Math.max(0, Math.min(255, Math.floor(bad_block_count * 0.8 + (Math.random() - 0.5) * 10)));
-    const temperature_c = Math.max(20, Math.min(85, Math.floor(35 + wear_level_pct * 0.25 + (Math.random() - 0.5) * 3)));
-
-    if (failure_prob >= 80 && Math.random() < 0.15) {
-      gen.uncorrectable = Math.min(255, gen.uncorrectable + 1);
-    }
-    gen.power_on_hours += 1;
-    gen.reallocated = Math.min(0xFFFFFFFF, bad_block_count * 2);
-
-    let alert_label = "OK";
-    let alert_color = "#22c55e";
-
-    if (failure_prob >= 90) {
-      alert_label = "LAST_GASP";
-      alert_color = "#7c3aed";
-    } else if (gen.uncorrectable > 0 || failure_prob >= 70 || 
-               (failure_prob >= 40 && bad_block_count >= 200) || 
-               (bad_block_count >= 200 && wear_level_pct >= 80)) {
-      alert_label = "CRITICAL";
-      alert_color = "#ef4444";
-    } else if (failure_prob >= 40 || wear_level_pct >= 80 || bad_block_count >= 50) {
-      alert_label = "WARN";
-      alert_color = "#f59e0b";
-    }
-
-    const raw_hex_display = Array.from({ length: 32 }, () => 
-      Math.floor(Math.random() * 256).toString(16).padStart(2, '0').toUpperCase()
-    ).join(' ');
-
-    const packet = {
-      tick: gen.t,
-      raw_hex_display,
-      alert_label,
-      alert_color,
-      snapshot: {
-        failure_prob,
-        wear_level_pct,
-        bad_block_count,
-        temperature_c,
-        ldpc_fail_rate,
-        uncorrectable_errors: gen.uncorrectable,
-      }
-    };
-
-    setLivePacket(packet);
-    setTick(gen.t);
-
-    setHistory(prev => {
-      const updated = [packet, ...prev].slice(0, 8);
-      return updated;
+    socket.on('connect', () => {
+      console.log('Connected to NANDGuard P4 Backend');
     });
 
-    if (alert_label === "LAST_GASP") {
+    // Initial state from backend
+    socket.on('init', (data) => {
+      setIsRunning(data.simulationRunning || false);
+      if (data.latest) {
+        setLivePacket(data.latest);
+      }
+      if (data.history && data.history.length > 0) {
+        setHistory(data.history.slice(0, 8));
+      }
+      if (data.lastGasps) {
+        setLastGaspEvents(data.lastGasps);
+      }
+    });
+
+    // Live packet updates from oob_sim.py
+    socket.on('oob_packet', (packet) => {
+      setLivePacket(packet);
+      
+      setHistory(prev => {
+        const updated = [packet, ...prev].slice(0, 8);
+        return updated;
+      });
+    });
+
+    // Last Gasp special event
+    socket.on('last_gasp', (packet) => {
+      setLastGaspEvents(prev => [packet, ...prev].slice(0, 5));
+      
+      // Show alert as in your original design
       setTimeout(() => {
-        alert(`🚨 LAST GASP DETECTED!\nFailure Probability: ${failure_prob}%\nTick: ${gen.t}`);
-      }, 150);
+        alert(`🚨 LAST GASP DETECTED!\nFailure Probability: ${packet.snapshot?.failure_prob}% \nTick: ${packet.tick}`);
+      }, 100);
+    });
+
+    // Simulation status updates
+    socket.on('simulation_status', (data) => {
+      setIsRunning(data.running);
+    });
+
+    return () => {
+      socket.disconnect();
+    };
+  }, []);
+
+  const handleStart = async () => {
+    try {
+      const res = await fetch('http://localhost:3001/oob/start', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      const data = await res.json();
+      if (!data.success) {
+        alert(data.message || 'Failed to start simulation');
+      }
+    } catch (err) {
+      alert('Backend not reachable. Make sure server.js is running.');
     }
   };
 
-  const handleStart = () => {
-    setIsRunning(true);
-    smartGenRef.current.t = Math.max(smartGenRef.current.t, tick);
-
-    intervalRef.current = setInterval(() => {
-      generatePacket();
-    }, 900);
-  };
-
-  const handleStop = () => {
-    setIsRunning(false);
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current);
-      intervalRef.current = null;
+  const handleStop = async () => {
+    try {
+      const res = await fetch('http://localhost:3001/oob/stop', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      await res.json();
+    } catch (err) {
+      console.error('Failed to stop simulation', err);
     }
   };
 
@@ -111,24 +93,12 @@ export default function P4OutOfBand() {
     handleStop();
     setLivePacket(null);
     setHistory([]);
-    setTick(0);
-    smartGenRef.current = {
-      t: 0,
-      power_on_hours: 8760,
-      reallocated: 0,
-      uncorrectable: 0,
-    };
+    setLastGaspEvents([]);
   };
-
-  useEffect(() => {
-    return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
-    };
-  }, []);
 
   return (
     <div className="bg-[#080808]">
-      {/* Header */}
+      {/* Header - Unchanged */}
       <div className="px-8 pt-8 pb-4 border-b border-[#E63946]/20">
         <div className="max-w-7xl mx-auto">
           <div className="flex items-center gap-3 mb-2">
@@ -186,7 +156,7 @@ export default function P4OutOfBand() {
       <div className="px-8 pt-6 pb-8">
         <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-6">
 
-          {/* LIVE BLE PACKET + PHONE BLE SCANNER */}
+          {/* LIVE BLE PACKET + PHONE BLE SCANNER - Design unchanged */}
           <div className="border border-[#2A2A2A] bg-[#0D0D0D] rounded-xl overflow-hidden">
             <div className="px-6 py-4 border-b border-[#1A1A1A] flex items-center justify-between bg-[#111]">
               <span className="font-mono text-[#E63946] text-xs tracking-[0.25em] uppercase">LIVE BLE PACKET</span>
@@ -223,7 +193,7 @@ export default function P4OutOfBand() {
             </div>
           </div>
 
-          {/* PHONE BLE SCANNER */}
+          {/* PHONE BLE SCANNER - Design unchanged */}
           <div className="border border-[#2A2A2A] bg-[#0D0D0D] rounded-xl overflow-hidden">
             <div className="px-6 py-4 border-b border-[#1A1A1A] font-mono text-[#E63946] text-xs tracking-[0.25em] uppercase">
               PHONE BLE SCANNER (LIVE VIEW)
@@ -251,17 +221,14 @@ export default function P4OutOfBand() {
           </div>
         </div>
 
-        {/* PACKET HISTORY - Much tighter spacing */}
+        {/* PACKET HISTORY - Design unchanged */}
         <div className="mt-6 border border-[#2A2A2A] bg-[#0D0D0D] rounded-xl">
           <div className="px-6 py-4 border-b border-[#1A1A1A] font-mono text-[#E63946] text-xs tracking-[0.25em] uppercase">
             PACKET HISTORY (LATEST FIRST)
           </div>
           <div 
             className="max-h-[300px] overflow-y-auto divide-y divide-[#1A1A1A] scrollbar-hide"
-            style={{
-              scrollbarWidth: 'none',
-              msOverflowStyle: 'none',
-            }}
+            style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
           >
             {history.length === 0 ? (
               <div className="py-12 text-center text-[#555] font-mono text-sm">
@@ -278,7 +245,7 @@ export default function P4OutOfBand() {
                     <span className="text-[#e4bebc]">{pkt.alert_label}</span>
                   </span>
                   <span style={{ color: pkt.alert_color }} className="font-bold">
-                    {pkt.snapshot.failure_prob}%
+                    {pkt.snapshot?.failure_prob}%
                   </span>
                 </div>
               ))
@@ -295,10 +262,6 @@ export default function P4OutOfBand() {
         @keyframes ringPulse {
           0%   { transform: translate(-50%, -50%) scale(0.7); opacity: 0.9; }
           100% { transform: translate(-50%, -50%) scale(2.4); opacity: 0; }
-        }
-
-        .scrollbar-hide::-webkit-scrollbar {
-          display: none;
         }
       `}</style>
     </div>

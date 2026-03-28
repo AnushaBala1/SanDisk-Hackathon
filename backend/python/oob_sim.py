@@ -107,40 +107,47 @@ def evaluate_trigger(failure_prob, bad_block_count, wear_level_pct,
 def build_packet(snapshot: dict, alert: int) -> bytes:
     """
     Builds the exact 25-byte BLE GAP advertisement packet.
-    Packet layout mirrors the C implementation byte-for-byte.
+    Fixed to clamp values to valid byte range (0-255).
     """
+    # Clamp all values to valid byte range (0-255)
+    failure_prob = min(255, max(0, int(snapshot["failure_prob"])))
+    wear_level   = min(255, max(0, int(snapshot["wear_level_pct"])))
+    ldpc_fail    = min(255, max(0, int(snapshot["ldpc_fail_rate"])))
+    temp_c       = min(255, max(0, int(snapshot["temperature_c"])))
+    uncorrectable = min(255, max(0, int(snapshot.get("uncorrectable_errors", 0))))
+
     flags_byte = (alert & 0x03) | (0x04 if alert == OOB_ALERT_LAST_GASP else 0x00)
 
     packet = struct.pack(
         "<"
-        "BBB"
-        "BB"
-        "BB"
-        "BB"
-        "B"
-        "B"
-        "B"
-        "H"
-        "B"
-        "B"
-        "I"
-        "I"
-        "B",
+        "BBB"     # Flags
+        "BB"      # Length + Type
+        "BB"      # Company ID
+        "BB"      # Magic 'NG'
+        "B"       # Flags byte
+        "B"       # failure_prob
+        "B"       # wear_level
+        "H"       # bad_block_count (2 bytes)
+        "B"       # ldpc_fail_rate
+        "B"       # temperature_c
+        "I"       # reallocated_sectors (4 bytes)
+        "I"       # power_on_hours (4 bytes)
+        "B",      # uncorrectable_errors
         2, 0x01, 0x06,
         21, 0xFF,
         OOB_COMPANY_ID_LO, OOB_COMPANY_ID_HI,
         MAGIC_N, MAGIC_G,
         flags_byte,
-        snapshot["failure_prob"],
-        snapshot["wear_level_pct"],
+        failure_prob,
+        wear_level,
         snapshot["bad_block_count"],
-        snapshot["ldpc_fail_rate"],
-        snapshot["temperature_c"],
+        ldpc_fail,
+        temp_c,
         snapshot["reallocated_sectors"],
         snapshot["power_on_hours"],
-        snapshot["uncorrectable_errors"],
+        uncorrectable,
     )
-    return packet   # 25 bytes
+    return packet
 
 
 def decode_packet(raw: bytes) -> dict | None:

@@ -134,19 +134,29 @@ app.get('/', (req, res) => {
 // ─── P4 : OOB Control Routes (NEW) ───────────────────────────────────────────
 
 /** Start OOB Simulation */
+/** Start OOB Simulation - Fixed for python/ subfolder */
 app.post('/oob/start', (req, res) => {
   if (oobSimProcess) {
     return res.json({ success: false, message: 'OOB Simulation is already running' });
   }
 
-  const scriptPath = path.join(__dirname, 'oob_sim.py');
+  // Correct path: python/oob_sim.py
+  const scriptPath = path.join(__dirname, 'python', 'oob_sim.py');
 
   if (!fs.existsSync(scriptPath)) {
-    return res.status(404).json({ success: false, message: 'oob_sim.py not found' });
+    return res.status(404).json({ 
+      success: false, 
+      message: `oob_sim.py not found at: ${scriptPath}` 
+    });
   }
 
   try {
-    oobSimProcess = spawn('python', [scriptPath], { stdio: 'pipe' });
+    console.log(`[P4] Starting oob_sim.py from: ${scriptPath}`);
+
+    oobSimProcess = spawn('python', [scriptPath], { 
+      stdio: 'pipe',
+      cwd: path.join(__dirname, 'python')   // Important: run from python folder
+    });
 
     oobSimProcess.stdout.on('data', (data) => {
       console.log(`[oob_sim] ${data.toString().trim()}`);
@@ -162,10 +172,13 @@ app.post('/oob/start', (req, res) => {
       io.emit('simulation_status', { running: false });
     });
 
-    console.log('[P4] OOB Simulation started');
+    console.log('[P4] OOB Simulation started successfully');
     io.emit('simulation_status', { running: true });
 
-    res.json({ success: true, message: 'OOB Simulation started successfully' });
+    res.json({ 
+      success: true, 
+      message: 'OOB Simulation started successfully' 
+    });
   } catch (err) {
     console.error('[P4] Failed to start oob_sim.py:', err);
     res.status(500).json({ success: false, message: 'Failed to start simulation' });
