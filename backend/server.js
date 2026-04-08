@@ -302,6 +302,50 @@ app.post('/model/stream', upload.single('file'), async (req, res) => {
 });
 
 // ─────────────────────────────────────────────────────────────
+// P4 — OOB ROUTES (start/stop the Python sim only)
+// ─────────────────────────────────────────────────────────────
+
+let oobSimProcess = null;
+
+app.get('/oob/status', (req, res) => {
+  res.json({
+    simulationRunning: !!oobSimProcess
+  });
+});
+
+app.post('/oob/start', (req, res) => {
+  if (oobSimProcess) {
+    return res.json({ success: false, message: 'Already running' });
+  }
+
+  const scriptPath = path.join(__dirname, 'python', 'oob_sim.py');
+
+  oobSimProcess = require('child_process').spawn('python', [scriptPath], {
+    stdio: 'pipe',
+    cwd: path.join(__dirname, 'python')
+  });
+
+  oobSimProcess.stdout.on('data', d => console.log('[oob_sim]', d.toString().trim()));
+  oobSimProcess.stderr.on('data', d => console.error('[oob_sim ERR]', d.toString().trim()));
+  oobSimProcess.on('close', code => {
+    console.log(`[oob_sim] exited with code ${code}`);
+    oobSimProcess = null;
+  });
+
+  console.log('[P4] OOB simulation started');
+  res.json({ success: true, message: 'OOB simulation started' });
+});
+
+app.post('/oob/stop', (req, res) => {
+  if (!oobSimProcess) {
+    return res.json({ success: false, message: 'Not running' });
+  }
+  oobSimProcess.kill();
+  oobSimProcess = null;
+  res.json({ success: true, message: 'OOB simulation stopped' });
+});
+
+// ─────────────────────────────────────────────────────────────
 // START SERVER
 // ─────────────────────────────────────────────────────────────
 
