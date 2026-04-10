@@ -18,7 +18,7 @@ from xgboost import XGBClassifier
 
 from fastapi import FastAPI, UploadFile, File, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel
 
 
@@ -932,4 +932,4 @@ async def stream_drive(file: UploadFile = File(...), interval: float = 0.12):
 
 @app.exception_handler(404)
 async def not_found(request, exc):
-    return {"error": "Route not found"}
+    return JSONResponse(status_code=404, content={"error": "Route not found"})
