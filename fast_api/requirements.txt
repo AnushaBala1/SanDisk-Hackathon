@@ -1,8 +1,6 @@
-os
-io
-json
+fastapi
+uvicorn[standard]
 pandas
 joblib
 xgboost
-pydantic
-fastapi
+scikit-learn
