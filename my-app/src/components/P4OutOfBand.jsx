@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import SimLoader from './Simloader.jsx';
 
-const API = 'http://localhost:3001';
+const API = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 export default function P4OutOfBand() {
   const [isRunning, setIsRunning]   = useState(false);

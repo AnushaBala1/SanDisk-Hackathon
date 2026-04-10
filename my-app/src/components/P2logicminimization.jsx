@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import SimLoader from './Simloader.jsx';
 
-const API_BASE = 'http://localhost:8000';
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000';;
 
 export default function P2LogicMinimization() {
   const [activeFn, setActiveFn] = useState(0);
