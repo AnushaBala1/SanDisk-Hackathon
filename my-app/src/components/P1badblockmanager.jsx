@@ -4,7 +4,7 @@ import SimLoader from './Simloader.jsx';
 const ROWS = 40;
 const COLS = 40;
 const TOTAL_BLOCKS = ROWS * COLS; // 1600
-const API_BASE = 'http://localhost:3001';
+const API_BASE = 'http://localhost:8000';
 
 export default function P1BadBlockManager() {
   const [blocks, setBlocks] = useState(Array(TOTAL_BLOCKS).fill('ok'));

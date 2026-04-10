@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import SimLoader from './Simloader.jsx';
 
-const API_BASE = 'http://localhost:3001';
+const API_BASE = 'http://localhost:8000';
 
 const STEPS = [
   { id: 1, label: 'ENCODE DATA'      },

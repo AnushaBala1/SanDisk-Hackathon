@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import SimLoader from './Simloader.jsx';
 
-const API = 'http://localhost:3001';
+const API = 'http://localhost:8000';
 
 // ─────────────────────────────────────────────────────────────
 // DATA HELPERS
