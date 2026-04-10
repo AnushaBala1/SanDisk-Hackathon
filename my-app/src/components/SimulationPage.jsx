@@ -3,7 +3,7 @@ import P1BadBlockManager    from './P1badblockmanager.jsx';
 import P2LogicMinimization  from './P2logicminimization.jsx';
 import P3LDPC               from './P3ldpc.jsx';
 import P4OutOfBand          from './P4OutOfBand.jsx';
-import P5PredictiveFailure  from './P5PredictiveFailure.jsx';
+import P5PredictiveFailure  from './P5predictivefailure.jsx';
 
 const MODULES = [
   { id: 'P1', label: 'BAD BLOCK MANAGER',          available: true  },
