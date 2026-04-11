@@ -20,14 +20,14 @@ from fastapi import FastAPI, UploadFile, File, HTTPException, WebSocket, WebSock
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel
-
+from collections import deque
 
 # ══════════════════════════════════════════════════════════════════════════════
 # APP SETUP
 # ══════════════════════════════════════════════════════════════════════════════
 
 app = FastAPI(title="NANDGuard Unified Backend")
-
+UART_LOGS: deque = deque(maxlen=500)
 ALLOWED_ORIGINS = os.getenv(
     "ALLOWED_ORIGINS",
     "http://localhost:5173,http://localhost:3000"   # add your Vercel URL here via env var
@@ -925,6 +925,63 @@ async def stream_drive(file: UploadFile = File(...), interval: float = 0.12):
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
 
+class UartLogBody(BaseModel):
+    """
+    Shape of JSON sent by uart_reader.py for each UART line.
+    line : the raw text emitted by the ZedBoard
+    ts   : ISO-8601 UTC timestamp added by the Python bridge
+    """
+    line: str
+    ts:   str = ""
+ 
+ 
+@app.post("/uart/log")
+def uart_receive_log(body: UartLogBody):
+    """
+    Called by uart_reader.py running locally on your machine.
+    Appends one log entry to the ring buffer and returns 200 OK.
+ 
+    Why a ring buffer and not a database?
+    → This is a live demo. You only need the last ~500 lines visible
+      on screen. A deque is O(1) append and O(1) discard — perfect.
+    """
+    entry = {
+        "id":   len(UART_LOGS),        # monotonically increasing within session
+        "ts":   body.ts,               # timestamp from the bridge (UTC)
+        "line": body.line,             # raw UART text
+    }
+    UART_LOGS.append(entry)
+    return {"ok": True, "total": len(UART_LOGS)}
+ 
+ 
+@app.get("/uart/logs")
+def uart_get_logs(since: int = 0):
+    """
+    Called by the React terminal every second (polling).
+ 
+    Query param:
+        since=<id>  — return only entries newer than this id
+                      (React tracks the last id it received)
+ 
+    Why polling instead of WebSocket?
+    → The OOB module already uses a WebSocket. Polling is simpler here
+      and 1-second intervals are perfectly fine for a log terminal.
+      No connection state to manage on either side.
+ 
+    Returns:
+        { logs: [...], total: N }
+    where each log = { id, ts, line }
+    """
+    logs_list = list(UART_LOGS)
+ 
+    # Filter to only entries the client hasn't seen yet
+    # 'since' is the last id the client received (exclusive lower bound)
+    new_logs = [entry for entry in logs_list if entry["id"] > since]
+ 
+    return {
+        "logs":  new_logs,
+        "total": len(logs_list),
+    }
 
 # ══════════════════════════════════════════════════════════════════════════════
 # 404 fallback

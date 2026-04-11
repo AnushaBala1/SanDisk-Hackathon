@@ -7,6 +7,7 @@ import CTABanner from './components/CTABanner';
 import Footer from './components/Footer';
 import SimulationPage from './components/SimulationPage';
 import AlgorithmPage from './components/Algorithmpage';
+import UartTerminal from './components/UartTerminal';  // ← add this
 
 function App() {
   const [currentPage, setCurrentPage] = useState('home');
@@ -45,6 +46,11 @@ function App() {
           <AlgorithmPage />
           <Footer />
         </>
+      )}
+
+      {currentPage === 'uart' && (   // ← add this block
+        <UartTerminal />
+        // No Footer here — UartTerminal is full viewport height (100vh)
       )}
     </div>
   );

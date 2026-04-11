@@ -49,6 +49,16 @@ export default function Navbar({ currentPage, onNavigate }) {
           >
             Algorithms
           </button>
+          <button
+            onClick={() => onNavigate('uart')}
+            className={`font-['Space_Grotesk'] tracking-tight transition-colors ${
+              currentPage === 'uart'
+                ? 'text-white border-b-2 border-[#E63946] pb-1'
+                : 'text-[#A0A0A0] hover:text-white'
+            }`}
+          >
+            Live Logs
+          </button>
           <a href="#" className="text-[#A0A0A0] hover:text-white transition-colors font-['Space_Grotesk'] tracking-tight">Tech Stack</a>
           <a href="#" className="text-[#A0A0A0] hover:text-white transition-colors font-['Space_Grotesk'] tracking-tight">Team</a>
         </div>
